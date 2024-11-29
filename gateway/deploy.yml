@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+
+kind: Deployment
+
+metadata:
+  name: gateway
+  labels:
+    app: gateway
+  namespace: sello-id
+
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 3
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      values:
+                        - gateway
+                      operator: In
+      containers:
+        - name: gateway
+          image: SECRET_IMAGE
+          ports:
+            - containerPort: 3000
+          env:
+            - name: APP_NAME
+              value: "SECRET_APP_NAME"
+            - name: APP_HOST
+              value: "0.0.0.0"
+            - name: APP_PORT
+              value: "3000"
+            - name: NATS_SERVERS
+              value: "SECRET_NATS_SERVERS"
+            - name: AMS_SERVICE_USER
+              value: "ams-client"
+            - name: AMS_SERVICE_PASS
+              value: "SECRET_AMS_SERVICE_PASS"
+            - name: AMS_SERVICE_TIMEOUT
+              value: "10000"
+            - name: ANTIFRAUD_SERVICE_USER
+              value: "antifraud-client"
+            - name: ANTIFRAUD_SERVICE_PASS
+              value: "SECRET_ANTIFRAUD_SERVICE_PASS"
+            - name: ANTIFRAUD_SERVICE_TIMEOUT
+              value: "5000"
+            - name: LMS_SERVICE_URL
+              value: "SECRET_LMS_SERVICE_URL"
+            - name: LMS_SERVICE_TIMEOUT
+              value: "5000"
+            - name: SSO_SERVICE_URL
+              value: "SECRET_SSO_SERVICE_URL"
+            - name: SSO_SERVICE_TIMEOUT
+              value: "5000"
+          resources:
+            limits:
+              cpu: "5000m"
+              memory: "1Gi"
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+      imagePullSecrets:
+        - name: registry-key
+      serviceAccountName: api-reader
+    metadata:
+      labels:
+        app: gateway

@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: always
+    hostname: rabbitmq
+    expose:
+      - 5672
+      - 15672
+    ports:
+      - 5672:5672
+      - 15672:15672
+
+  redis:
+    container_name: redis
+    hostname: redis
+    image: redis:7.0.5-alpine
+    ports:
+      - 6379:6379
+    expose:
+      - 6379
+
+  gateway:
+    build: ./gateway
+    hostname: gateway
+    restart: always
+    depends_on:
+      - rabbitmq
+      - redis
+    environment:
+      RMQ_HOST: rabbitmq
+      REDIS_HOST: redis
+    env_file:
+      - .env
+    ports:
+      - 3000:3000
+    expose:
+      - 3000
+
+  rates-service:
+    build: ./rates-service
+    hostname: rates-service
+    restart: always
+    depends_on:
+      - rabbitmq
+      - redis
+    environment:
+      RMQ_HOST: rabbitmq
+      REDIS_HOST: redis
+    env_file:
+      - .env

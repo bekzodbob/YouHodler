@@ -1,0 +1,43 @@
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.9.0-debug
+    entrypoint: ['/bin/sh', '-c']
+  variables:
+    KANIKOCONFIG: /kaniko/.docker/config.json
+  script:
+    - mkdir -p /kaniko/.docker
+    - mv $KANIKO_CONF $KANIKOCONFIG
+    - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
+    - /kaniko/executor --context "${CI_PROJECT_DIR}" --dockerfile "${CI_PROJECT_DIR}/Dockerfile" --destination
+      "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+  tags:
+    - sello-id-dev
+  only:
+    - dev
+
+deploy:
+  stage: deploy
+  image:
+    name: portainer/kubectl-shell:latest
+    entrypoint: ['/bin/sh', '-c']
+  variables:
+    KUBECONFIG: /home/shell/admin.conf
+  script:
+    - mv $ADMIN_CONF $KUBECONFIG
+    - sed -i "s|SECRET_IMAGE|${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}|" deploy.yml
+    - sed -i "s|SECRET_APP_NAME|gateway-${CI_COMMIT_SHORT_SHA}|" deploy.yml
+    - sed -i "s|SECRET_NATS_SERVERS|${DEV_NATS_SERVERS}|" deploy.yml
+    - sed -i "s|SECRET_AMS_SERVICE_PASS|${DEV_AMS_SERVICE_PASS}|" deploy.yml
+    - sed -i "s|SECRET_ANTIFRAUD_SERVICE_PASS|${DEV_ANTIFRAUD_SERVICE_PASS}|" deploy.yml
+    - sed -i "s|SECRET_LMS_SERVICE_URL|${DEV_LMS_SERVICE_URL}|" deploy.yml
+    - sed -i "s|SECRET_SSO_SERVICE_URL|${DEV_SSO_SERVICE_URL}|" deploy.yml
+    - kubectl apply -f deploy.yml
+  tags:
+    - sello-id-dev
+  only:
+    - dev
